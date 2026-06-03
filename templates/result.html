@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetinaScan AI - Analysis Results</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-base: #030712;
+            --bg-card: rgba(10, 17, 40, 0.65);
+            --bg-card-hover: rgba(16, 28, 66, 0.8);
+            --accent-cyan: #00f2fe;
+            --accent-blue: #0072ff;
+            --accent-rp: #ff2a5f;
+            --accent-normal: #10b981;
+            
+            /* Dynamic variables configured based on prediction class */
+            --accent-theme: var(--accent-cyan);
+            --theme-glow: rgba(0, 242, 254, 0.3);
+            --theme-glow-strong: rgba(0, 242, 254, 0.55);
+            --border-theme: rgba(0, 242, 254, 0.15);
+            
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border-glass: rgba(255, 255, 255, 0.08);
+            
+            --font-tech: 'Orbitron', sans-serif;
+            --font-sans: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        /* Dynamic classes derived from prediction results mapping */
+        body.diagnosed-normal {
+            --accent-theme: var(--accent-normal);
+            --theme-glow: rgba(16, 185, 129, 0.25);
+            --theme-glow-strong: rgba(16, 185, 129, 0.5);
+            --border-theme: rgba(16, 185, 129, 0.2);
+        }
+
+        body.diagnosed-rp {
+            --accent-theme: var(--accent-rp);
+            --theme-glow: rgba(255, 42, 95, 0.25);
+            --theme-glow-strong: rgba(255, 42, 95, 0.5);
+            --border-theme: rgba(255, 42, 95, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Canvas Background */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Holographic Grid overlay */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 242, 254, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 254, 0.015) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .dashboard-container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Header Styles */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            font-size: 1.5rem;
+            color: var(--accent-theme);
+            text-shadow: 0 0 10px var(--theme-glow);
+            animation: pulse-glow 2.5s infinite;
+        }
+
+        .logo-text {
+            font-family: var(--font-tech);
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ffffff 40%, var(--accent-theme) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-tech);
+            font-size: 0.75rem;
+            background: rgba(10, 17, 40, 0.5);
+            border: 1px solid var(--border-glass);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            letter-spacing: 1px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-theme);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-theme);
+            animation: blink 1.5s infinite;
+        }
+
+        /* Top Grid Layout */
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        /* Diagnostic Hero Card */
+        .hero-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-theme);
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 
+                        0 0 20px rgba(0, 0, 0, 0.1),
+                        inset 0 1px 1px rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            animation: fade-in 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-theme));
+        }
+
+        .hero-card-left {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .hero-label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .prediction-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: var(--font-tech);
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--accent-theme);
+            text-shadow: 0 0 15px var(--theme-glow);
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge-indicator {
+            display: inline-block;
+            font-family: var(--font-tech);
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            border: 1px solid var(--accent-theme);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .medical-disclaimer {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            max-width: 320px;
+            line-height: 1.4;
+        }
+
+        /* Circular Progress Wrapper */
+        .progress-circle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-circle-wrapper {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.3s;
+            stroke-linecap: round;
+        }
+
+        .progress-value-text {
+            position: absolute;
+            font-family: var(--font-tech);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-theme);
+            text-shadow: 0 0 10px var(--theme-glow);
+        }
+
+        .progress-label-sub {
+            font-family: var(--font-tech);
+            font-size: 0.65rem;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+
+        /* Medical Insights Card */
+        .insights-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4),
+                        inset 0 1px 1px rgba(255, 255, 255, 0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            animation: fade-in 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .insights-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 0.75rem;
+        }
+
+        .insights-header i {
+            color: var(--accent-theme);
+            font-size: 1.2rem;
+            text-shadow: 0 0 8px var(--theme-glow);
+        }
+
+        .insights-header h3 {
+            font-family: var(--font-tech);
+            font-size: 1rem;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .insights-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .interpretation-indicator {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .interpretation-indicator i {
+            margin-top: 0.15rem;
+            font-size: 1.1rem;
+        }
+
+        .text-rp {
+            background: rgba(255, 42, 95, 0.08);
+            border: 1px solid rgba(255, 42, 95, 0.2);
+            color: #ff5e87;
+        }
+
+        .text-normal {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .clinical-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Image Comparison Section */
+        .comparison-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .section-title {
+            font-family: var(--font-tech);
+            font-size: 1.1rem;
+            letter-spacing: 1.5px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title i {
+            color: var(--accent-theme);
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .image-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-theme);
+            box-shadow: 0 10px 25px var(--theme-glow);
+        }
+
+        .image-wrapper {
+            width: 100%;
+            height: 250px;
+            overflow: hidden;
+            position: relative;
+            background-color: #010409;
+            cursor: pointer;
+        }
+
+        .image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .image-card:hover .image-wrapper img {
+            transform: scale(1.08);
+        }
+
+        /* Zoom Hover overlay */
+        .zoom-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-wrapper:hover .zoom-overlay {
+            opacity: 1;
+        }
+
+        .zoom-icon {
+            font-size: 1.5rem;
+            color: var(--accent-theme);
+            background: rgba(3, 7, 18, 0.8);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--accent-theme);
+            box-shadow: 0 0 10px var(--theme-glow-strong);
+        }
+
+        /* Image Details Card Body */
+        .image-card-body {
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-glass);
+            background: rgba(3, 7, 18, 0.3);
+        }
+
+        .image-card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .img-title {
+            font-family: var(--font-tech);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .img-tag {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .download-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .download-btn:hover {
+            background: var(--accent-theme);
+            color: #030712;
+            border-color: var(--accent-theme);
+            box-shadow: 0 0 10px var(--theme-glow);
+        }
+
+        /* Telemetry Metrics Panel */
+        .metrics-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-tile {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1.25rem;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .metric-tile:hover {
+            border-color: var(--accent-theme);
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.05);
+        }
+
+        .metric-name {
+            font-family: var(--font-tech);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .metric-value.highlighted {
+            color: var(--accent-theme);
+            text-shadow: 0 0 8px var(--theme-glow);
+        }
+
+        /* Action Bar */
+        .actions-bar {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .nav-btn {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+            border: 1px solid var(--border-glass);
+            padding: 0.9rem 2rem;
+            border-radius: 8px;
+            font-family: var(--font-tech);
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            letter-spacing: 1px;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent-theme);
+            box-shadow: 0 0 15px var(--theme-glow);
+            transform: translateY(-2px);
+            color: var(--accent-theme);
+        }
+
+        /* Image Lightbox Modal */
+        .lightbox-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(3, 7, 18, 0.95);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            z-index: 99999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            color: var(--text-primary);
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+        }
+
+        .lightbox-close:hover {
+            color: var(--accent-theme);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-theme);
+        }
+
+        .lightbox-content-container {
+            max-width: 90%;
+            max-height: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .lightbox-img {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 8px;
+            border: 1px solid var(--border-theme);
+            box-shadow: 0 0 30px var(--theme-glow-strong);
+            object-fit: contain;
+        }
+
+        .lightbox-caption {
+            font-family: var(--font-tech);
+            color: var(--text-primary);
+            letter-spacing: 1.5px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding-top: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            letter-spacing: 0.5px;
+        }
+
+        /* Animations */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                opacity: 0.8;
+                text-shadow: 0 0 8px var(--theme-glow);
+            }
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 15px var(--theme-glow-strong);
+            }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        /* Responsive Layouts */
+        @media (max-width: 1024px) {
+            .top-grid {
+                grid-template-columns: 1fr;
+            }
+            .images-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .images-grid {
+                grid-template-columns: 1fr;
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dashboard-container {
+                padding: 1rem;
+            }
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            .hero-card {
+                flex-direction: column;
+                gap: 2rem;
+                padding: 1.5rem;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .insights-card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<!-- Body dynamically applies diagnostic theme tags class based on classification label -->
+<body class="{% if 'Retinitis' in result.label or 'RP' in result.label or 'rp' in result.label or 'Pigmentosa' in result.label %}diagnosed-rp{% else %}diagnosed-normal{% endif %}">
+    
+    <!-- Canvas Telemetry background -->
+    <canvas id="particles-canvas"></canvas>
+    
+    <!-- Scanning grid lines overlay -->
+    <div class="grid-overlay"></div>
+
+    <div class="dashboard-container">
+        <!-- Dashboard Header -->
+        <header>
+            <a href="/" class="logo-area">
+                <i class="fa-solid fa-circle-radiation logo-icon"></i>
+                <h1 class="logo-text">RETINASCAN AI</h1>
+            </a>
+            <div class="system-status">
+                <div class="status-dot"></div>
+                <span>AI ANALYSIS REPORT</span>
+            </div>
+        </header>
+
+        <!-- Top Panel: Results Summary and Interpretation Insights -->
+        <section class="top-grid">
+            <!-- Hero Result Card -->
+            <div class="hero-card">
+                <div class="hero-card-left">
+                    <span class="hero-label">DIAGNOSTIC IDENTIFIER</span>
+                    <div class="prediction-badge">
+                        <i class="fa-solid fa-microscope"></i>
+                        <span>{{ result.label }}</span>
+                    </div>
+                    <div>
+                        <span class="status-badge-indicator">
+                            {% if 'Retinitis' in result.label or 'RP' in result.label or 'rp' in result.label or 'Pigmentosa' in result.label %}
+                            CLASSIFICATION: HIGH ANOMALY
+                            {% else %}
+                            CLASSIFICATION: NOMINAL
+                            {% endif %}
+                        </span>
+                    </div>
+                    <p class="medical-disclaimer">
+                        *Neural network predictions are computer-assisted interpretations to support clinical staff. Corroborate details with ophthalmic diagnostic practices.
+                    </p>
+                </div>
+                
+                <!-- Animated SVG Confidence circle -->
+                <div class="progress-circle-container">
+                    <div class="progress-circle-wrapper">
+                        <svg class="progress-ring" width="120" height="120">
+                            <!-- Background track circle -->
+                            <circle class="progress-ring-bg" stroke="rgba(255, 255, 255, 0.05)" stroke-width="6" fill="transparent" r="50" cx="60" cy="60" />
+                            <!-- Foreground indicator ring -->
+                            <circle class="progress-ring-circle" stroke="var(--accent-theme)" stroke-width="6" fill="transparent" r="50" cx="60" cy="60" />
+                        </svg>
+                        <span class="progress-value-text" id="confidence-val">0%</span>
+                    </div>
+                    <span class="progress-label-sub">Confidence</span>
+                </div>
+            </div>
+
+            <!-- Medical Interpretation Card -->
+            <div class="insights-card">
+                <div class="insights-header">
+                    <i class="fa-solid fa-file-medical-text"></i>
+                    <h3>CLINICAL INTERPRETATION</h3>
+                </div>
+                <div class="insights-body">
+                    {% if 'Retinitis' in result.label or 'RP' in result.label or 'rp' in result.label or 'Pigmentosa' in result.label %}
+                    <div class="interpretation-indicator text-rp">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>AI analysis indicates retinal degeneration patterns associated with Retinitis Pigmentosa.</span>
+                    </div>
+                    <p class="clinical-desc">
+                        The neural network model detected hyper-reflective foci, structural pigment deposits (bone-spicules), or vascular attenuation. Immediate ophthalmological verification and specialized electroretinography (ERG) checks are recommended.
+                    </p>
+                    {% else %}
+                    <div class="interpretation-indicator text-normal">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Retinal scan appears normal with no major RP indicators detected.</span>
+                    </div>
+                    <p class="clinical-desc">
+                        The optic disc margin appears sharp, and retinal vasculature is well-defined with healthy foveal structure. No significant visual markers suggesting progressive peripheral photoreceptor breakdown were discovered.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Visual Imaging Outputs Section (Grad-CAM Comparison) -->
+        <section class="comparison-section">
+            <h3 class="section-title">
+                <i class="fa-solid fa-chart-line"></i>
+                EXPLAINABILITY MAPS & VISUALIZATIONS
+            </h3>
+            
+            <div class="images-grid">
+                <!-- Original Image Card -->
+                <div class="image-card">
+                    <div class="image-wrapper zoom-trigger" data-title="Original Retinal Fundus Scan">
+                        <img src="{{ result.image_url }}" alt="Original Retinal Image" class="gallery-img">
+                        <div class="zoom-overlay">
+                            <div class="zoom-icon"><i class="fa-solid fa-magnifying-glass-plus"></i></div>
+                        </div>
+                    </div>
+                    <div class="image-card-body">
+                        <div class="image-card-info">
+                            <span class="img-title">Original Retina</span>
+                            <span class="img-tag">Uploaded scan photography</span>
+                        </div>
+                        <a href="{{ result.uploaded_url }}" download="original_retinal_scan.png" class="download-btn" title="Download Image">
+                            <i class="fa-solid fa-arrow-down-long"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Grad-CAM Image Card -->
+                <div class="image-card">
+                    <div class="image-wrapper zoom-trigger" data-title="Grad-CAM Hotspot Activation Map">
+                        <img src="{{ result.gradcam_url }}" alt="Grad-CAM Heatmap" class="gallery-img">
+                        <div class="zoom-overlay">
+                            <div class="zoom-icon"><i class="fa-solid fa-magnifying-glass-plus"></i></div>
+                        </div>
+                    </div>
+                    <div class="image-card-body">
+                        <div class="image-card-info">
+                            <span class="img-title">Grad-CAM Heatmap</span>
+                            <span class="img-tag">Neural feature activations</span>
+                        </div>
+                        <a href="{{ result.gradcam_url }}" download="gradcam_heatmap.png" class="download-btn" title="Download Image">
+                            <i class="fa-solid fa-arrow-down-long"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Overlay Image Card -->
+                <div class="image-card">
+                    <div class="image-wrapper zoom-trigger" data-title="Focal Diagnosis Feature Overlay">
+                        <img src="{{ result.overlay_url }}" alt="Overlay Visualization" class="gallery-img">
+                        <div class="zoom-overlay">
+                            <div class="zoom-icon"><i class="fa-solid fa-magnifying-glass-plus"></i></div>
+                        </div>
+                    </div>
+                    <div class="image-card-body">
+                        <div class="image-card-info">
+                            <span class="img-title">Diagnostic Overlay</span>
+                            <span class="img-tag">Merged visualization arcade</span>
+                        </div>
+                        <a href="{{ result.overlay_url }}" download="diagnostic_overlay.png" class="download-btn" title="Download Image">
+                            <i class="fa-solid fa-arrow-down-long"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Telemetry Details Panel -->
+        <section class="metrics-section">
+            <h3 class="section-title">
+                <i class="fa-solid fa-terminal"></i>
+                SYSTEM TELEMETRY & MODEL PARAMETERS
+            </h3>
+            
+            <div class="metrics-grid">
+                <!-- Score -->
+                <div class="metric-tile">
+                    <span class="metric-name">Raw Prediction Score</span>
+                    <span class="metric-value">{{ result.raw_score }}</span>
+                </div>
+                <!-- Confidence -->
+                <div class="metric-tile">
+                    <span class="metric-name">Confidence Value</span>
+                    <span class="metric-value highlighted" id="confidence-metric">0.00%</span>
+                </div>
+                <!-- Architecture -->
+                <div class="metric-tile">
+                    <span class="metric-name">Deep Model Model</span>
+                    <span class="metric-value">ResNet50</span>
+                </div>
+                <!-- Explainability -->
+                <div class="metric-tile">
+                    <span class="metric-name">Explainability</span>
+                    <span class="metric-value">Grad-CAM</span>
+                </div>
+                <!-- Threshold -->
+                <div class="metric-tile">
+                    <span class="metric-name">Decision Threshold</span>
+                    <span class="metric-value">0.50</span>
+                </div>
+                <!-- Status -->
+                <div class="metric-tile">
+                    <span class="metric-name">Diagnosis status</span>
+                    <span class="metric-value" style="color: var(--accent-theme);">{{ result.risk_level }}</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Action Buttons -->
+        <div class="actions-bar">
+            <a href="/" class="nav-btn">
+                <i class="fa-solid fa-arrow-left"></i> ANALYZE NEW SCAN
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            RETINASCAN AI &bull; CLINICAL TELEMETRY REPORTS &bull; SECURE LINK ENCRYPTED
+        </footer>
+    </div>
+
+    <!-- Fullscreen Image Viewer Modal (Lightbox Overlay) -->
+    <div class="lightbox-modal" id="lightbox-modal">
+        <span class="lightbox-close" id="lightbox-close">&times;</span>
+        <div class="lightbox-content-container">
+            <img class="lightbox-img" id="lightbox-img" src="" alt="Expanded Scan View">
+            <span class="lightbox-caption" id="lightbox-caption">Zoomed Scan view</span>
+        </div>
+    </div>
+
+    <!-- Scripting for Progress Bars, Particles, and Lightbox Interactions -->
+    <script>
+        // --- Canvas Particle Animation ---
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let particlesArray = [];
+        const numberOfParticles = 55;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const mouse = {
+            x: null,
+            y: null,
+            radius: 120
+        };
+
+        window.addEventListener('mousemove', function(event) {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        window.addEventListener('mouseleave', function() {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1;
+                this.speedX = (Math.random() - 0.5) * 0.35;
+                this.speedY = (Math.random() - 0.5) * 0.35;
+                this.opacity = Math.random() * 0.4 + 0.1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x < 0 || this.x > canvas.width) this.speedX = -this.speedX;
+                if (this.y < 0 || this.y > canvas.height) this.speedY = -this.speedY;
+
+                if (mouse.x != null && mouse.y != null) {
+                    let dx = this.x - mouse.x;
+                    let dy = this.y - mouse.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < mouse.radius) {
+                        let force = (mouse.radius - distance) / mouse.radius;
+                        let directionX = dx / distance;
+                        let directionY = dy / distance;
+                        this.x += directionX * force * 1.5;
+                        this.y += directionY * force * 1.5;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(0, 242, 254, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            for (let i = 0; i < numberOfParticles; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+        initParticles();
+
+        function connectParticles() {
+            let maxDistance = 140;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let dx = particlesArray[a].x - particlesArray[b].x;
+                    let dy = particlesArray[a].y - particlesArray[b].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < maxDistance) {
+                        let alpha = (1 - (distance / maxDistance)) * 0.12;
+                        // Use cyan or theme color for connections
+                        ctx.strokeStyle = `rgba(0, 242, 254, ${alpha})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Animation Loop
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            connectParticles();
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+
+        // --- SVG Confidence Circle Animating and Parsing ---
+        let confidenceInput = parseFloat("{{ result.confidence }}");
+        if (isNaN(confidenceInput)) {
+            confidenceInput = 0.0;
+        }
+        // Normalize: if the raw confidence value is formatted as [0, 1.0], scale to percentage
+        let confidenceVal = confidenceInput <= 1.0 ? confidenceInput * 100 : confidenceInput;
+        confidenceVal = parseFloat(confidenceVal.toFixed(2));
+
+        // Inject the telemetry values formatted cleanly
+        document.getElementById('confidence-metric').textContent = confidenceVal.toFixed(2) + '%';
+
+        // Setup SVG Circular Ring Progress
+        const circle = document.querySelector('.progress-ring-circle');
+        const radius = circle.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        circle.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+        }
+
+        // Animate progression loading
+        let currentProgressVal = 0;
+        const duration = 1500; // time in ms
+        const startTime = performance.now();
+
+        function animateProgressRing(timestamp) {
+            const elapsed = timestamp - startTime;
+            const progressRatio = Math.min(elapsed / duration, 1);
+            
+            // Ease-out cubic curve
+            const easeValue = 1 - Math.pow(1 - progressRatio, 3);
+            const displayProgress = easeValue * confidenceVal;
+            
+            document.getElementById('confidence-val').textContent = displayProgress.toFixed(1) + '%';
+            setProgress(displayProgress);
+
+            if (progressRatio < 1) {
+                requestAnimationFrame(animateProgressRing);
+            }
+        }
+        requestAnimationFrame(animateProgressRing);
+
+
+        // --- Interactive Zoom Gallery (Modal Lightbox) ---
+        const lightboxModal = document.getElementById('lightbox-modal');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const lightboxCaption = document.getElementById('lightbox-caption');
+        const lightboxClose = document.getElementById('lightbox-close');
+
+        document.querySelectorAll('.zoom-trigger').forEach(trigger => {
+            trigger.addEventListener('click', () => {
+                const imgElement = trigger.querySelector('.gallery-img');
+                const titleText = trigger.getAttribute('data-title');
+                
+                lightboxImg.src = imgElement.src;
+                lightboxCaption.textContent = titleText || imgElement.alt;
+                lightboxModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden'; // Lock scrolling
+            });
+        });
+
+        // Close functions
+        function closeViewer() {
+            lightboxModal.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Restore scroll
+        }
+
+        lightboxClose.addEventListener('click', closeViewer);
+        lightboxModal.addEventListener('click', (e) => {
+            if (e.target === lightboxModal) {
+                closeViewer();
+            }
+        });
+        
+        // Escape key to close modal
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightboxModal.style.display === 'flex') {
+                closeViewer();
+            }
+        });
+    </script>
+</body>
+</html>

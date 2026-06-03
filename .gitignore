@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+static/uploads/*
+static/gradcam/*
+static/results/*
+
+models/rp_detection_final.keras
